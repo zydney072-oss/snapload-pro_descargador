@@ -6,31 +6,36 @@ import os
 # MOTOR DE DESCARGA PROFESIONAL (ESTILO WEB)
 # ==========================================
 def descargar_contenido(url, solo_audio=False, solo_imagen=False):
-    # 1. Limpiamos el enlace de Facebook antes de procesar
+    # 1. Limpiamos y preparamos enlaces específicos
     if "facebook.com" in url:
+        # Forzamos una estructura limpia para Reels y videos de Facebook
         if "share/r/" in url or "reel/" in url or "reels" in url:
-            url = url.replace("web.facebook.com", "mbasic.facebook.com")
-            url = url.replace("www.facebook.com", "mbasic.facebook.com")
-
+            url = url.replace("web.facebook.com", "www.facebook.com")
+            
     # 2. Aseguramos que la carpeta de descargas exista
     if not os.path.exists('descargas'):
         os.makedirs('descargas')
 
-    # 3. Configuramos las opciones de descarga
+    # 3. Configuramos las opciones optimizadas para burlar bloqueos en la nube
     opciones = {
         'outtmpl': 'descargas/%(id)s.%(ext)s',
-        # Simulamos que somos la app oficial de Android para evitar que nos bloqueen
+        'ignoreerrors': True,
+        'no_warnings': True,
+        'quiet': True,
+        # Forzamos cabeceras de navegador real de escritorio para evitar bloqueos 403
         'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
             'Sec-Fetch-Mode': 'navigate',
         },
-        'ignoreerrors': True,
-        # Forzamos a yt-dlp a que use extractores que imitan a celulares reales
+        # Forzamos a yt-dlp a usar clientes alternativos para evadir las restricciones de servidores de YouTube
         'extractor_args': {
+            'youtube': {
+                'player_client': ['android', 'web_embedded'],
+                'skip': ['webpage']
+            },
             'instagram': ['embed'],
-            'youtube': ['player_client=android_embedytdlp,web']
         }
     }
     
@@ -50,7 +55,7 @@ def descargar_contenido(url, solo_audio=False, solo_imagen=False):
             'outtmpl': 'descargas/%(id)s',
         })
     else:
-        # Buscamos el formato mp4 de mejor calidad que no requiera descifrado complejo
+        # Seleccionamos formatos estándar compatibles
         opciones.update({
             'format': 'best[ext=mp4]/best', 
         })
@@ -104,7 +109,7 @@ def limpiar_enlace():
 
 # Contenedor para la barra de búsqueda y el botón alineados
 with st.container():
-    col_link, col_boton = st.columns([22, 1])  # Ajuste fino para pantallas grandes y chicas
+    col_link, col_boton = st.columns([22, 1])
 
     with col_link:
         enlace_usuario = st.text_input(
@@ -118,7 +123,7 @@ with st.container():
         if st.button("🧹", on_click=limpiar_enlace, help="Limpiar barra", use_container_width=True):
             st.rerun()
 
-# 4. Las pestañas de descarga
+# Las pestañas de descarga
 tab1, tab2, tab3 = st.tabs(["🎥 Video MP4", "🎵 Audio MP3", "🖼️ Imagen / Foto"])
 
 with tab1:
