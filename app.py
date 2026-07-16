@@ -5,13 +5,10 @@ import os
 # ==========================================
 # MOTOR DE DESCARGA PROFESIONAL (ESTILO WEB)
 # ==========================================
-# ==========================================
-# MOTOR DE DESCARGA PROFESIONAL (ESTILO WEB)
-# ==========================================
 def descargar_contenido(url, solo_audio=False, solo_imagen=False):
     # 1. Limpiamos el enlace de Facebook antes de procesar
     if "facebook.com" in url:
-        if "share/r/" in url or "reel/" in url:
+        if "share/r/" in url or "reel/" in url or "reels" in url:
             url = url.replace("web.facebook.com", "mbasic.facebook.com")
             url = url.replace("www.facebook.com", "mbasic.facebook.com")
 
@@ -50,9 +47,8 @@ def descargar_contenido(url, solo_audio=False, solo_imagen=False):
         opciones.update({
             'skip_download': True,
             'writethumbnail': True,
-        'outtmpl': '%(id)s',
-
-                   })
+            'outtmpl': 'descargas/%(id)s',
+        })
     else:
         # Buscamos el formato mp4 de mejor calidad que no requiera descifrado complejo
         opciones.update({
