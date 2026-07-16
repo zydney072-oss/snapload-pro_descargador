@@ -2,16 +2,26 @@ import streamlit as st
 import yt_dlp
 import os
 
-# Asegurar que la carpeta de descargas exista
-if not os.path.exists('descargas'):
-    os.makedirs('descargas')
-
+# ==========================================
+# MOTOR DE DESCARGA PROFESIONAL (ESTILO WEB)
+# ==========================================
 # ==========================================
 # MOTOR DE DESCARGA PROFESIONAL (ESTILO WEB)
 # ==========================================
 def descargar_contenido(url, solo_audio=False, solo_imagen=False):
+    # 1. Limpiamos el enlace de Facebook antes de procesar
+    if "facebook.com" in url:
+        if "share/r/" in url or "reel/" in url:
+            url = url.replace("web.facebook.com", "mbasic.facebook.com")
+            url = url.replace("www.facebook.com", "mbasic.facebook.com")
+
+    # 2. Aseguramos que la carpeta de descargas exista
+    if not os.path.exists('descargas'):
+        os.makedirs('descargas')
+
+    # 3. Configuramos las opciones de descarga
     opciones = {
-     'outtmpl': '%(id)s.%(ext)s',
+        'outtmpl': 'descargas/%(id)s.%(ext)s',
         # Simulamos que somos la app oficial de Android para evitar que nos bloqueen
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
