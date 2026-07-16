@@ -1,90 +1,51 @@
 import streamlit as st
-import yt_dlp
+import requests
 import os
 
 # ==========================================
-# MOTOR DE DESCARGA PROFESIONAL (ESTILO WEB)
+# MOTOR DE DESCARGA INDESTRUCTIBLE (VÍA API)
 # ==========================================
-def descargar_contenido(url, solo_audio=False, solo_imagen=False):
-    # 1. Limpiamos y preparamos enlaces específicos
-    if "facebook.com" in url:
-        # Forzamos una estructura limpia para Reels y videos de Facebook
-        if "share/r/" in url or "reel/" in url or "reels" in url:
-            url = url.replace("web.facebook.com", "www.facebook.com")
-            
-    # 2. Aseguramos que la carpeta de descargas exista
+def descargar_contenido_api(url):
+    # Aseguramos que la carpeta de descargas exista
     if not os.path.exists('descargas'):
         os.makedirs('descargas')
-
-    # 3. Configuramos las opciones optimizadas para burlar bloqueos en la nube
-    opciones = {
-        'outtmpl': 'descargas/%(id)s.%(ext)s',
-        'ignoreerrors': True,
-        'no_warnings': True,
-        'quiet': True,
-        # Forzamos cabeceras de navegador real de escritorio para evitar bloqueos 403
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-            'Sec-Fetch-Mode': 'navigate',
-        },
-        # Forzamos a yt-dlp a usar clientes alternativos para evadir las restricciones de servidores de YouTube
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'web_embedded'],
-                'skip': ['webpage']
-            },
-            'instagram': ['embed'],
-        }
+        
+    # Usamos una API pública y gratuita de descarga de videos (Cobalt API)
+    api_url = "https://api.cobalt.tools/api/json"
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
     }
     
-    if solo_audio:
-        opciones.update({
-            'format': 'bestaudio/best',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
-        })
-    elif solo_imagen:
-        opciones.update({
-            'skip_download': True,
-            'writethumbnail': True,
-            'outtmpl': 'descargas/%(id)s',
-        })
-    else:
-        # Seleccionamos formatos estándar compatibles
-        opciones.update({
-            'format': 'best[ext=mp4]/best', 
-        })
-        
+    # Configuramos la petición para la API
+    payload = {
+        "url": url,
+        "vCodec": "h264", # Forzamos formato mp4 compatible con web
+        "isAudioOnly": False
+    }
+    
     try:
-        with yt_dlp.YoutubeDL(opciones) as ydl:
-            info = ydl.extract_info(url, download=True)
-            if not info:
-                return None
+        # 1. Le pedimos el video procesado a la API
+        respuesta = requests.post(api_url, json=payload, headers=headers)
+        if respuesta.status_code == 200:
+            datos = respuesta.json()
+            # Si la API nos devuelve un enlace directo de descarga
+            if "url" in datos:
+                video_url = datos["url"]
                 
-            if 'entries' in info:
-                info = info['entries'][0]
+                # 2. Descargamos el archivo temporalmente en nuestro servidor
+                nombre_archivo = os.path.join("descargas", "video_descargado.mp4")
+                descarga_file = requests.get(video_url, stream=True)
                 
-            filename = ydl.prepare_filename(info)
-            
-            if solo_audio:
-                filename = os.path.splitext(filename)[0] + ".mp3"
-            elif solo_imagen:
-                base = os.path.splitext(filename)[0]
-                for ext in ['.jpg', '.png', '.webp', '.jpeg']:
-                    if os.path.exists(base + ext):
-                        return base + ext
-                if 'thumbnails' in info and len(info['thumbnails']) > 0:
-                    return info['thumbnails'][-1]['url']
-                    
-            return filename
+                with open(nombre_archivo, 'wb') as f:
+                    for chunk in descarga_file.iter_content(chunk_size=1024*1024):
+                        if chunk:
+                            f.write(chunk)
+                            
+                return nombre_archivo
     except Exception as e:
-        print(f"Error interno: {e}") 
-        return None
+        print(f"Error en API: {e}")
+    return None
 
 # ==========================================
 # INTERFAZ VISUAL (ALINEACIÓN PERFECTA)
@@ -92,7 +53,7 @@ def descargar_contenido(url, solo_audio=False, solo_imagen=False):
 st.set_page_config(page_title="SnapLoad Pro", page_icon="⚡", layout="centered")
 
 st.markdown("<h1 style='text-align: center; color: #FF4B4B;'>⚡ SnapLoad Pro</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Descarga Videos, Audio e Imágenes Públicas de Redes Sociales</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Descarga de forma segura desde YouTube, TikTok, Facebook e Instagram</p>", unsafe_allow_html=True)
 st.write("---")
 
 # TRUCO CSS: Alineación vertical perfecta
@@ -123,57 +84,24 @@ with st.container():
         if st.button("🧹", on_click=limpiar_enlace, help="Limpiar barra", use_container_width=True):
             st.rerun()
 
-# Las pestañas de descarga
-tab1, tab2, tab3 = st.tabs(["🎥 Video MP4", "🎵 Audio MP3", "🖼️ Imagen / Foto"])
-
-with tab1:
-    st.write("Descarga videos completos o Reels en formato MP4.")
-    if st.button("🚀 Procesar Video", key="btn_vid"):
-        if enlace_usuario:
-            with st.spinner("Procesando tu video..."):
-                archivo = descargar_contenido(enlace_usuario, solo_audio=False)
-                if archivo and os.path.exists(archivo):
-                    st.success("✅ ¡Video listo para descargar!")
-                    st.video(archivo)
-                    with open(archivo, "rb") as file:
-                        st.download_button(label="💾 Guardar Video en mi dispositivo", data=file, file_name=os.path.basename(archivo), mime="video/mp4", use_container_width=True)
-                else:
-                    st.error("❌ No se pudo descargar. Verifica que el enlace sea de un video o Reel público.")
-        else:
-            st.warning("⚠️ Pega un enlace primero.")
-
-with tab2:
-    st.write("Convierte el contenido a Audio MP3.")
-    if st.button("🎵 Procesar MP3", key="btn_aud"):
-        if enlace_usuario:
-            with st.spinner("Extrayendo audio..."):
-                archivo = descargar_contenido(enlace_usuario, solo_audio=True)
-                if archivo and os.path.exists(archivo):
-                    st.success("✅ ¡Audio listo para descargar!")
-                    st.audio(archivo)
-                    with open(archivo, "rb") as file:
-                        st.download_button(label="💾 Guardar MP3 en mi dispositivo", data=file, file_name=os.path.basename(archivo), mime="audio/mp3", use_container_width=True)
-                else:
-                    st.error("❌ Error de procesamiento. Verifica que el video esté disponible en público.")
-        else:
-            st.warning("⚠️ Pega un enlace primero.")
-
-with tab3:
-    st.write("Extrae la foto o la portada de la publicación.")
-    if st.button("🖼️ Procesar Imagen", key="btn_img"):
-        if enlace_usuario:
-            with st.spinner("Buscando imagen..."):
-                archivo = descargar_contenido(enlace_usuario, solo_imagen=True)
-                if archivo:
-                    st.success("✅ ¡Imagen localizada!")
-                    if isinstance(archivo, str) and archivo.startswith("http"):
-                        st.image(archivo, use_container_width=True)
-                        st.markdown(f"[📥 Haz clic aquí para abrir y guardar la foto]({archivo})")
-                    elif os.path.exists(archivo):
-                        st.image(archivo, use_container_width=True)
-                        with open(archivo, "rb") as file:
-                            st.download_button(label="💾 Guardar Imagen en mi dispositivo", data=file, file_name=os.path.basename(archivo), mime="image/jpeg", use_container_width=True)
-                else:
-                    st.error("❌ No se pudo extraer la imagen de este enlace.")
-        else:
-            st.warning("⚠️ Pega un enlace primero.")
+# Pestaña de Descarga Única Estabilizada
+st.write("Descarga videos completos o Reels de forma garantizada.")
+if st.button("🚀 Procesar Video", key="btn_vid", use_container_width=True):
+    if enlace_usuario:
+        with st.spinner("Procesando tu video a través de un túnel seguro... Esto puede tardar unos segundos..."):
+            archivo = descargar_contenido_api(enlace_usuario)
+            if archivo and os.path.exists(archivo):
+                st.success("✅ ¡Video listo para descargar!")
+                st.video(archivo)
+                with open(archivo, "rb") as file:
+                    st.download_button(
+                        label="💾 Guardar Video en mi dispositivo", 
+                        data=file, 
+                        file_name="SnapLoad_Video.mp4", 
+                        mime="video/mp4", 
+                        use_container_width=True
+                    )
+            else:
+                st.error("❌ El servidor de la red social bloqueó la petición directa. Intenta con otro enlace o inténtalo más tarde.")
+    else:
+        st.warning("⚠️ Pega un enlace primero.")
